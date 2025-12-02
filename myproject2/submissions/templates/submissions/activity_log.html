@@ -1,0 +1,123 @@
+{% extends 'submissions/base.html' %}
+
+{% block title %}Історія змін{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">&larr; Назад до панелі</a>
+    <h2 class="fw-bold">Історія змін</h2>
+</div>
+
+<div class="card p-4 mb-4">
+    <form method="get">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label small">Тип дії</label>
+                <select name="action_type" class="form-select">
+                    <option value="">Всі дії</option>
+                    {% for choice in action_choices %}
+                    <option value="{{ choice.code }}" {% if choice.selected %}selected{% endif %}>{{ choice.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">З дати</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">По дату</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12 d-flex gap-2 justify-content-end">
+                <button type="submit" class="btn btn-primary">Фільтрувати</button>
+                <a href="{% url 'activity_log' %}" class="btn btn-outline-secondary">Скинути</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Час</th>
+                    <th>Користувач</th>
+                    <th>Дія</th>
+                    <th>Опис</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in page_obj %}
+                <tr>
+                    <td style="white-space: nowrap;">{{ log.timestamp|date:"d.m.Y H:i:s" }}</td>
+                    <td>
+                        {% if log.actor %}
+                        {{ log.actor.get_full_name|default:log.actor.username }}
+                        {% else %}
+                        <span class="text-muted">Система/Гість</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.action_type == 'submission' %}
+                        <span class="badge bg-primary">Здача роботи</span>
+                        {% elif log.action_type == 'grading' %}
+                        <span class="badge bg-success">Оцінювання</span>
+                        {% elif log.action_type == 'comment' %}
+                        <span class="badge bg-info text-dark">Коментар</span>
+                        {% elif log.action_type == 'login' %}
+                        <span class="badge bg-secondary">Вхід</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ log.action_type }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.description }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center py-4">Записів не знайдено.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page=1{% if selected_action %}&action_type={{ selected_action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">Перша</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ page_obj.previous_page_number }}{% if selected_action %}&action_type={{ selected_action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">Попередня</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} з {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ page_obj.next_page_number }}{% if selected_action %}&action_type={{ selected_action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">Наступна</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ page_obj.paginator.num_pages }}{% if selected_action %}&action_type={{ selected_action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">Остання</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'submissions/base.html' %}
+
+{% block title %}Вхід для вчителя{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card p-4">
+            <h3 class="text-center mb-4 fw-bold">Вхід для вчителя</h3>
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label">Логін</label>
+                    {{ form.username }}
+                    <script>
+                        document.getElementById('id_username').classList.add('form-control');
+                    </script>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Пароль</label>
+                    {{ form.password }}
+                    <script>
+                        document.getElementById('id_password').classList.add('form-control');
+                    </script>
+                </div>
+
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    Невірний логін або пароль.
+                </div>
+                {% endif %}
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary">Увійти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

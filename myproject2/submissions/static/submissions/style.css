@@ -1,0 +1,191 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+}
+
+.glass-nav {
+    background: rgba(33, 37, 41, 0.8) !important;
+    backdrop-filter: blur(10px);
+}
+
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(5px);
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 25px;
+    padding: 10px 30px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+}
+
+.form-control,
+.form-select {
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+}
+
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.2);
+    border-color: #764ba2;
+}
+
+.submission-item {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 5px solid #764ba2;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.submission-item:hover {
+    background: #f8f9fa;
+}
+
+/* Soft pastel badge colors for file types */
+.bg-soft-blue {
+    background-color: #bbdefb !important;
+    color: #0d47a1 !important;
+}
+
+.bg-soft-green {
+    background-color: #c8e6c9 !important;
+    color: #1b5e20 !important;
+}
+
+.bg-soft-red {
+    background-color: #ffcdd2 !important;
+    color: #b71c1c !important;
+}
+
+.bg-soft-orange {
+    background-color: #ffe0b2 !important;
+    color: #e65100 !important;
+}
+
+.bg-soft-purple {
+    background-color: #e1bee7 !important;
+    color: #4a148c !important;
+}
+
+.bg-soft-teal {
+    background-color: #b2dfdb !important;
+    color: #004d40 !important;
+}
+
+.bg-soft-gray {
+    background-color: #e0e0e0 !important;
+    color: #212121 !important;
+}
+
+/* Document Viewer Styles */
+.document-page {
+    background: white;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    margin: 20px auto;
+    max-width: 210mm;
+    /* A4 width */
+    min-height: 297mm;
+    /* A4 height */
+    position: relative;
+}
+
+.document-page::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* Optional: paper texture or subtle border */
+}
+
+/* Excel Table Styles */
+.excel-sheet {
+    max-width: 100%;
+    /* Excel sheets can be wider than A4 */
+    overflow-x: auto;
+    padding: 20px;
+}
+
+.excel-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: 'Calibri', 'Arial', sans-serif;
+    font-size: 14px;
+}
+
+.excel-table th,
+.excel-table td {
+    border: 1px solid #e0e0e0;
+    padding: 4px 8px;
+    white-space: nowrap;
+}
+
+.excel-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    text-align: center;
+    color: #666;
+    border-bottom: 2px solid #ddd;
+}
+
+.excel-table .row-header {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    text-align: center;
+    color: #666;
+    border-right: 2px solid #ddd;
+    width: 40px;
+    user-select: none;
+}
+
+.excel-table td {
+    cursor: cell;
+}
+
+.excel-table td:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.excel-table td.active-cell {
+    border: 2px solid #107c41;
+    /* Excel Green */
+    outline: none;
+}
+
+.formula-bar {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+}
+
+#formula-input {
+    border: none;
+    box-shadow: none;
+}
+
+#formula-input:focus {
+    box-shadow: none;
+}

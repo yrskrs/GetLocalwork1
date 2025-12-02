@@ -1,0 +1,141 @@
+{% extends 'submissions/base.html' %}
+
+{% block title %}Деталі роботи{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="mb-3">
+            <a href="{% url 'submission_success' %}" class="btn btn-outline-secondary">&larr; Назад до стрічки</a>
+        </div>
+
+        <div class="card p-4">
+            <h3 class="fw-bold mb-4">Деталі здачі роботи</h3>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <p class="mb-2"><strong>Учень:</strong> {{ submission.last_name }} {{ submission.first_name }}</p>
+                    <p class="mb-2"><strong>Клас:</strong> {{ submission.class_group.name }}</p>
+                    <p class="mb-2"><strong>Дата здачі:</strong> {{ submission.submitted_at|date:"d.m.Y H:i" }}</p>
+                </div>
+                <div class="col-md-6">
+                    {% if is_teacher %}
+                    <p class="mb-2"><strong>Оцінка:</strong>
+                        {% if submission.grade %}
+                        <span class="badge bg-success">{{ submission.grade }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Не оцінено</span>
+                        {% endif %}
+                    </p>
+                    {% else %}
+                    <p class="mb-2"><strong>Статус:</strong>
+                        {% if submission.grade %}
+                        <span class="badge bg-success">Оцінено ✓</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Не оцінено</span>
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="mb-4">
+                <h5 class="mb-3">Здана робота</h5>
+                {% if submission.file %}
+                {% with file_info=submission.get_file_info %}
+                <div class="card p-3 mb-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="mb-1"><strong>Тип файлу:</strong>
+                                <span class="badge bg-{{ file_info.color }} fs-6">
+                                    {{ file_info.icon }} {{ file_info.name }} {{ file_info.extension }}
+                                </span>
+                            </p>
+                            <p class="mb-1"><strong>Розширення:</strong> {{ file_info.extension }}</p>
+                            <p class="mb-0"><strong>Розмір:</strong> {{ submission.file.size|filesizeformat }}</p>
+                        </div>
+                        {% if is_teacher %}
+                        <a href="{% url 'view_file' submission.id %}" target="_blank" class="btn btn-primary">Відкрити
+                            файл</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endwith %}
+                {% if not is_teacher %}
+                <p class="text-muted">Файл прикріплено</p>
+                {% endif %}
+                {% endif %}
+
+                {% if submission.link %}
+                <p><strong>Посилання:</strong></p>
+                {% if is_teacher %}
+                <a href="{{ submission.link }}" target="_blank" class="btn btn-info">Відкрити посилання</a>
+                {% else %}
+                <p class="text-muted small">{{ submission.link }}</p>
+                {% endif %}
+                {% endif %}
+            </div>
+
+            {% if submission.comment %}
+            <div class="alert alert-info">
+                <h6 class="fw-bold mb-2">💬 Коментар вчителя</h6>
+                <p class="mb-1">{{ submission.comment }}</p>
+                {% if submission.teacher %}
+                <small class="text-muted">
+                    — {% if submission.teacher.get_full_name %}{{ submission.teacher.get_full_name }}{% else %}{{
+                    submission.teacher.username }}{% endif %}
+                </small>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if is_teacher %}
+            <hr>
+            <div class="mt-4">
+                <h5 class="mb-3">Коментар для учня</h5>
+                <div class="mb-3">
+                    <textarea class="form-control" id="comment-text" rows="3"
+                        placeholder="Введіть коментар...">{{ submission.comment }}</textarea>
+                </div>
+                <button class="btn btn-primary" id="save-comment-btn">Зберегти коментар</button>
+                <small class="text-success d-none" id="comment-msg">Збережено!</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if is_teacher %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const saveBtn = document.getElementById('save-comment-btn');
+        const commentText = document.getElementById('comment-text');
+        const msg = document.getElementById('comment-msg');
+
+        saveBtn.addEventListener('click', function () {
+            const comment = commentText.value;
+
+            fetch(`/teacher/comment/{{ submission.id }}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: `comment=${encodeURIComponent(comment)}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        msg.classList.remove('d-none');
+                        setTimeout(() => msg.classList.add('d-none'), 2000);
+                        location.reload();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

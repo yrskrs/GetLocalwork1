@@ -1,0 +1,105 @@
+{% extends 'submissions/base.html' %}
+
+{% block title %}Історія учня{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">&larr; Назад до панелі</a>
+</div>
+
+<div class="card p-4">
+    <h2 class="fw-bold mb-4">Історія робіт: {{ student_name }}</h2>
+
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Дата</th>
+                    <th>Клас</th>
+                    <th>Робота</th>
+                    <th>Оцінка</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for submission in submissions %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ submission.submitted_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ submission.class_group.name }}</td>
+                    <td>
+                        {% if submission.file %}
+                        {% with file_info=submission.get_file_info %}
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-{{ file_info.color }}">
+                                {{ file_info.icon }} {{ file_info.name }} {{ file_info.extension }}
+                            </span>
+                            {% if submission.comment %}
+                            <span class="badge bg-info text-dark" title="Коментар вчителя">
+                                <i class="bi bi-chat-dots"></i> 1
+                            </span>
+                            {% endif %}
+                            <a href="{% url 'view_file' submission.id %}" target="_blank"
+                                class="btn btn-sm btn-outline-primary">Відкрити</a>
+                        </div>
+                        {% endwith %}
+                        {% elif submission.link %}
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-warning text-dark">🔗 Посилання</span>
+                            <a href="{{ submission.link }}" target="_blank"
+                                class="btn btn-sm btn-outline-info">Відкрити</a>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td style="width: 150px;">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control grade-input" data-id="{{ submission.id }}"
+                                value="{{ submission.grade|default:'' }}" placeholder="Оцінка">
+                            <button class="btn btn-outline-secondary save-grade-btn" type="button"
+                                data-id="{{ submission.id }}">OK</button>
+                        </div>
+                        <small class="text-success d-none" id="msg-{{ submission.id }}">Збережено!</small>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">Історія порожня.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const saveButtons = document.querySelectorAll('.save-grade-btn');
+
+        saveButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const id = this.dataset.id;
+                const input = document.querySelector(`.grade-input[data-id="${id}"]`);
+                const grade = input.value;
+                const msg = document.getElementById(`msg-${id}`);
+
+                fetch(`/teacher/grade/${id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: `grade=${encodeURIComponent(grade)}`
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            msg.classList.remove('d-none');
+                            setTimeout(() => msg.classList.add('d-none'), 2000);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            });
+        });
+    });
+</script>
+{% endblock %}
