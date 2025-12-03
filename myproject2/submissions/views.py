@@ -5,11 +5,12 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.http import JsonResponse, HttpResponse, FileResponse
 from django.db.models import Q
 from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
 import csv
 import os
 from datetime import datetime
 from collections import defaultdict
-from .models import Submission, ClassGroup, ActivityLog, log_activity
+from .models import Submission, ClassGroup, ActivityLog, Comment, log_activity
 from .forms import SubmissionForm
 
 def submission_create(request):
@@ -134,6 +135,8 @@ def teacher_dashboard(request):
 
 @login_required
 def grade_submission(request, submission_id):
+    from django.contrib import messages
+    
     if request.method == 'POST':
         submission = get_object_or_404(Submission, id=submission_id)
         action = request.POST.get('action')
@@ -331,14 +334,45 @@ def gradebook(request):
         'dates': sorted_dates,
     })
 
+
+
 def submission_detail(request, submission_id):
     submission = get_object_or_404(Submission, id=submission_id)
     is_teacher = request.user.is_authenticated
     
+    # Handle POST request for adding comments (teachers only)
+    if request.method == 'POST' and is_teacher:
+        action = request.POST.get('action')
+        
+        if action == 'comment':
+            comment_text = request.POST.get('comment', '').strip()
+            if comment_text:
+                Comment.objects.create(
+                    submission=submission,
+                    author=request.user,
+                    text=comment_text
+                )
+                
+                # Log activity
+                log_activity(
+                    request.user,
+                    'comment',
+                    f"Додано коментар до роботи {submission.last_name} {submission.first_name}",
+                    submission=submission
+                )
+                
+                return redirect('submission_detail', submission_id=submission_id)
+    
+    # Get all comments for this submission
+    comments = submission.comments.all().select_related('author')
+    
     return render(request, 'submissions/submission_detail.html', {
         'submission': submission,
         'is_teacher': is_teacher,
+        'comments': comments,
     })
+
+
 
 @login_required
 def update_comment(request, submission_id):
@@ -361,27 +395,70 @@ def update_comment(request, submission_id):
 
 @login_required
 def view_file(request, submission_id):
+    from django.contrib import messages
+    from .models import Comment
+    
     submission = get_object_or_404(Submission, id=submission_id)
     
-    # Handle grading
+    # Handle POST requests (comments and grading)
     if request.method == 'POST':
-        grade = request.POST.get('grade')
-        if grade:
-            submission.grade = grade
-            submission.save()
-            log_activity(request.user, 'graded', f"Оцінено роботу {submission.first_name} {submission.last_name}: {grade}")
-            
-            # Add success message
-            from django.contrib import messages
-            messages.success(request, f'Оцінку {grade} успішно збережено!')
-            
-            # Redirect to same page to show updated grade
-            return redirect('view_file', submission_id=submission_id)
-
+        action = request.POST.get('action')
+        
+        if action == 'comment':
+            comment_text = request.POST.get('comment', '').strip()
+            if comment_text:
+                comment = Comment.objects.create(
+                    submission=submission,
+                    author=request.user,
+                    text=comment_text
+                )
+                
+                # Log activity
+                log_activity(
+                    request.user,
+                    'comment',
+                    f"Додано коментар до роботи {submission.last_name} {submission.first_name}",
+                    submission=submission
+                )
+                
+                # Check if AJAX request
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'status': 'success',
+                        'comment': {
+                            'id': comment.id,
+                            'text': comment.text,
+                            'author': f"{comment.author.first_name} {comment.author.last_name}" if comment.author.first_name else comment.author.username,
+                            'created_at': comment.created_at.strftime("%d.%m.%Y %H:%M")
+                        }
+                    })
+                
+                messages.success(request, 'Коментар додано!')
+                return redirect('view_file', submission_id=submission_id)
+        
+        elif action == 'grade':
+            grade = request.POST.get('grade', '').strip()
+            if grade:
+                submission.grade = grade
+                submission.save()
+                
+                log_activity(
+                    request.user,
+                    'grading',
+                    f"Оцінено роботу {submission.last_name} {submission.first_name}: {grade}",
+                    submission=submission
+                )
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'success', 'grade': grade})
+                
+                messages.success(request, f'Оцінку {grade} успішно збережено!')
+                return redirect('view_file', submission_id=submission_id)
+    
     # Navigation logic - sort by submission date
     all_submissions = Submission.objects.all().order_by('-submitted_at')
-    
     submission_list = list(all_submissions)
+    
     try:
         current_index = submission_list.index(submission)
         prev_submission = submission_list[current_index - 1] if current_index > 0 else None
@@ -447,18 +524,19 @@ def view_file(request, submission_id):
     elif file_ext in archive_files:
         file_type = 'archive'
         from .utils import get_archive_content
-        archive_content, error_message = get_archive_content(submission.file.path)
+        archive_content, error_message = get_archive_content(submission.file.path, file_ext)
         
     elif file_ext in image_files:
         file_type = 'image'
-        # For images, we just need the URL which is available via submission.file.url
         
     elif file_ext in ['.pdf']:
-        # PDF handling (browser native)
         return FileResponse(open(submission.file.path, 'rb'), content_type='application/pdf')
 
     else:
-        file_type = 'office' # Default fallback
+        file_type = 'office'
+
+    # Get all comments for this submission
+    comments = submission.comments.all().select_related('author')
 
     context = {
         'submission': submission,
@@ -471,9 +549,28 @@ def view_file(request, submission_id):
         'error_message': error_message,
         'prev_submission': prev_submission,
         'next_submission': next_submission,
+        'comments': comments,
     }
     return render(request, 'submissions/file_viewer.html', context)
 
+@login_required
+@require_POST
+def delete_comment(request, comment_id):
+    comment = get_object_or_404(Comment, id=comment_id)
+    
+    # Check if user is the author or has permission
+    if comment.author == request.user or request.user.is_staff:
+        submission_id = comment.submission.id
+        comment.delete()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'success'})
+        
+        from django.contrib import messages
+        messages.success(request, 'Коментар видалено!')
+        return redirect('view_file', submission_id=submission_id)
+    
+    return JsonResponse({'status': 'error', 'message': 'Немає прав'}, status=403)
 
 @login_required
 def activity_log(request):

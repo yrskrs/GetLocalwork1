@@ -197,12 +197,13 @@
                     {% endfor %}
                     {% endif %}
 
-                    <form method="post">
+                    <form method="post" id="grade-form">
                         {% csrf_token %}
+                        <input type="hidden" name="action" value="grade">
                         <div class="mb-3">
                             <label for="grade" class="form-label">Оцінка</label>
-                            <input type="number" class="form-control form-control-lg" id="grade" name="grade"
-                                value="{{ submission.grade|default:'' }}" min="1" max="12" placeholder="1-12">
+                            <input type="number" class="form-control" id="grade" name="grade"
+                                value="{{ submission.grade }}" min="1" max="12" required>
                         </div>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-success btn-lg">Зберегти оцінку</button>
@@ -226,15 +227,37 @@
 
                     <hr>
 
-                    <hr>
-
-                    <!-- Comment History -->
+                    <!-- Comments Section -->
+                    <!-- Comments Section -->
                     <div class="mb-3">
-                        <label class="form-label text-muted small">Історія коментарів</label>
-                        <div id="comment-history" class="bg-light p-2 rounded small"
-                            style="max-height: 200px; overflow-y: auto; white-space: pre-wrap;">
-                            {{ submission.comment|default:'Поки немає коментарів.' }}</div>
+                        <label class="form-label text-muted small">Коментарі</label>
+                        <div id="comments-list" class="mb-3" style="max-height: 250px; overflow-y: auto;">
+                            {% for comment in comments %}
+                            <div class="comment-item bg-light p-2 rounded mb-2" data-comment-id="{{ comment.id }}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted">
+                                            📅 {{ comment.created_at|date:"d.m.Y H:i" }} |
+                                            👤 {% if comment.author.first_name %}{{ comment.author.first_name }}
+                                            {{ comment.author.last_name }}{% else %}{{ comment.author.username }}
+                                            {% endif %}
+                                        </small>
+                                        <div class="mt-1" style="white-space: pre-wrap;">{{ comment.text }}</div>
+                                    </div>
+                                    {% if comment.author == request.user or request.user.is_staff %}
+                                    <button class="btn btn-sm btn-outline-danger delete-comment-btn ms-2"
+                                        data-comment-id="{{ comment.id }}" title="Видалити">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted small">Поки немає коментарів.</p>
+                            {% endfor %}
+                        </div>
                     </div>
+
 
                     <form id="comment-form" method="post">
                         {% csrf_token %}
@@ -274,8 +297,6 @@
         if (formulaInput) {
             const formula = cell.getAttribute('data-formula');
             formulaInput.value = formula || cell.innerText;
-
-            // Highlight active cell
             document.querySelectorAll('.excel-table td').forEach(td => td.classList.remove('active-cell'));
             cell.classList.add('active-cell');
         }
@@ -284,8 +305,10 @@
     // Comment AJAX Logic
     document.addEventListener('DOMContentLoaded', function () {
         const commentForm = document.getElementById('comment-form');
-        const historyDiv = document.getElementById('comment-history');
+        const commentsList = document.getElementById('comments-list');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
+        // Add comment
         if (commentForm) {
             commentForm.addEventListener('submit', function (e) {
                 e.preventDefault();
@@ -295,7 +318,6 @@
                 const icon = btn.querySelector('.bi-send');
                 const textarea = this.querySelector('textarea');
                 const comment = textarea.value.trim();
-                const csrfToken = this.querySelector('[name=csrfmiddlewaretoken]').value;
 
                 if (!comment) return;
 
@@ -314,35 +336,47 @@
                     },
                     body: formData
                 })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // Update history
-                            historyDiv.textContent = data.full_comment;
-                            historyDiv.scrollTop = historyDiv.scrollHeight; // Scroll to bottom
+                            // Create new comment element
+                            const commentHTML = `
+                            <div class="comment-item bg-light p-2 rounded mb-2" data-comment-id="${data.comment.id}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted">
+                                            📅 ${data.comment.created_at} | 👤 ${data.comment.author}
+                                        </small>
+                                        <div class="mt-1" style="white-space: pre-wrap;">${data.comment.text}</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger delete-comment-btn ms-2" data-comment-id="${data.comment.id}" title="Видалити">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+
+                            // Remove "no comments" message if exists
+                            const noComments = commentsList.querySelector('.text-muted');
+                            if (noComments) noComments.remove();
+
+                            // Add new comment
+                            commentsList.insertAdjacentHTML('beforeend', commentHTML);
+                            commentsList.scrollTop = commentsList.scrollHeight;
 
                             // Clear input
                             textarea.value = '';
 
                             // Success animation
-                            const originalText = btn.querySelector('span').textContent;
                             btn.querySelector('span').textContent = 'Відправлено!';
                             btn.classList.remove('btn-outline-primary');
                             btn.classList.add('btn-success');
 
                             setTimeout(() => {
-                                btn.querySelector('span').textContent = originalText;
+                                btn.querySelector('span').textContent = 'Відправити';
                                 btn.classList.remove('btn-success');
                                 btn.classList.add('btn-outline-primary');
                             }, 2000);
-                        } else {
-                            console.error('Server error:', data);
-                            alert('Помилка при збереженні коментаря.');
                         }
                     })
                     .catch(error => {
@@ -350,13 +384,48 @@
                         alert('Помилка з\'єднання. Спробуйте ще раз.');
                     })
                     .finally(() => {
-                        // Reset button state
                         btn.disabled = false;
                         spinner.classList.add('d-none');
                         icon.classList.remove('d-none');
                     });
             });
         }
+
+        // Delete comment
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.delete-comment-btn')) {
+                const btn = e.target.closest('.delete-comment-btn');
+                const commentId = btn.dataset.commentId;
+
+                if (!confirm('Видалити цей коментар?')) return;
+
+                fetch(`/teacher/comment/delete/${commentId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            const commentItem = document.querySelector(`[data-comment-id="${commentId}"]`);
+                            commentItem.remove();
+
+                            // Show "no comments" if list is empty
+                            if (commentsList.children.length === 0) {
+                                commentsList.innerHTML = '<p class="text-muted small">Поки немає коментарів.</p>';
+                            }
+                        } else {
+                            alert(data.message || 'Помилка видалення');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Помилка з\'єднання');
+                    });
+            }
+        });
     });
 </script>
 {% endblock %}

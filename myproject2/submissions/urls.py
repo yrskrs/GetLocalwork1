@@ -14,6 +14,7 @@ urlpatterns = [
     path('submission/<int:submission_id>/', views.submission_detail, name='submission_detail'),
     path('teacher/comment/<int:submission_id>/', views.update_comment, name='update_comment'),
     path('teacher/view-file/<int:submission_id>/', views.view_file, name='view_file'),
+    path('teacher/comment/delete/<int:comment_id>/', views.delete_comment, name='delete_comment'),
     path('teacher/activity/', views.activity_log, name='activity_log'),
 ]
 

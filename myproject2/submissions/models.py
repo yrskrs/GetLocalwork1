@@ -71,6 +71,20 @@ class Submission(models.Model):
         verbose_name_plural = "Здані роботи"
         ordering = ['-submitted_at']
 
+class Comment(models.Model):
+    submission = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name='comments', verbose_name="Робота")
+    author = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, verbose_name="Автор")
+    text = models.TextField(verbose_name="Текст коментаря")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    
+    def __str__(self):
+        return f"Коментар від {self.author} до {self.submission}"
+    
+    class Meta:
+        verbose_name = "Коментар"
+        verbose_name_plural = "Коментарі"
+        ordering = ['created_at']
+
 class ActivityLog(models.Model):
     ACTION_CHOICES = [
         ('submission', 'Здача роботи'),
@@ -83,6 +97,7 @@ class ActivityLog(models.Model):
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name="Тип дії")
     description = models.TextField(verbose_name="Опис")
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Час")
+    submission = models.ForeignKey(Submission, on_delete=models.SET_NULL, null=True, blank=True, related_name='activity_logs', verbose_name="Робота")
     
     def __str__(self):
         return f"{self.timestamp} - {self.actor} - {self.action_type}"
@@ -92,10 +107,11 @@ class ActivityLog(models.Model):
         verbose_name_plural = "Журнал дій"
         ordering = ['-timestamp']
 
-def log_activity(actor, action_type, description):
+def log_activity(actor, action_type, description, submission=None):
     """Створює запис в журналі дій"""
     ActivityLog.objects.create(
         actor=actor if actor and actor.is_authenticated else None,
         action_type=action_type,
-        description=description
+        description=description,
+        submission=submission
     )

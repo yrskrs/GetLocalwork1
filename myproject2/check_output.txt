@@ -1,0 +1,22 @@
+Checking ActivityLog model...
+ActivityLog count: 1
+Successfully created test log
+
+Checking Submission model...
+Submission count: 11
+
+Checking tables in DB:
+django_migrations
+sqlite_sequence
+auth_group_permissions
+auth_user_groups
+auth_user_user_permissions
+django_admin_log
+django_content_type
+auth_permission
+auth_group
+auth_user
+django_session
+submissions_classgroup
+submissions_submission
+submissions_activitylog

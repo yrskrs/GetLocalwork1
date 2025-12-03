@@ -31,12 +31,13 @@
                         {% if submission.file %}
                         {% with file_info=submission.get_file_info %}
                         <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-{{ file_info.color }}">
+                            <span class="badge bg-{{ file_info.color }}"
+                                style="min-width: 120px; display: inline-block;">
                                 {{ file_info.icon }} {{ file_info.name }} {{ file_info.extension }}
                             </span>
-                            {% if submission.comment %}
+                            {% if submission.comments.count > 0 %}
                             <span class="badge bg-info text-dark" title="Коментар вчителя">
-                                <i class="bi bi-chat-dots"></i> 1
+                                <i class="bi bi-chat-dots"></i> {{ submission.comments.count }}
                             </span>
                             {% endif %}
                             <a href="{% url 'view_file' submission.id %}" target="_blank"

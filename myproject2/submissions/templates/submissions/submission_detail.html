@@ -49,7 +49,8 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <p class="mb-1"><strong>Тип файлу:</strong>
-                                <span class="badge bg-{{ file_info.color }} fs-6">
+                                <span class="badge bg-{{ file_info.color }}"
+                                    style="min-width: 120px; display: inline-block;">
                                     {{ file_info.icon }} {{ file_info.name }} {{ file_info.extension }}
                                 </span>
                             </p>
@@ -78,29 +79,48 @@
                 {% endif %}
             </div>
 
-            {% if submission.comment %}
-            <div class="alert alert-info">
-                <h6 class="fw-bold mb-2">💬 Коментар вчителя</h6>
-                <p class="mb-1">{{ submission.comment }}</p>
-                {% if submission.teacher %}
-                <small class="text-muted">
-                    — {% if submission.teacher.get_full_name %}{{ submission.teacher.get_full_name }}{% else %}{{
-                    submission.teacher.username }}{% endif %}
-                </small>
-                {% endif %}
+            <!-- Comments Section -->
+            {% if comments %}
+            <hr>
+            <div class="mb-3">
+                <h5 class="mb-3">💬 Коментарі вчителя</h5>
+                {% for comment in comments %}
+                <div class="alert alert-info mb-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <small class="text-muted d-block mb-1">
+                                📅 {{ comment.created_at|date:"d.m.Y H:i" }} |
+                                👤 {% if comment.author.first_name %}{{ comment.author.first_name }}
+                                {{ comment.author.last_name }}{% else %}{{ comment.author.username }}{% endif %}
+                            </small>
+                            <p class="mb-0" style="white-space: pre-wrap;">{{ comment.text }}</p>
+                        </div>
+                        {% if comment.author == request.user or request.user.is_staff %}
+                        <button class="btn btn-sm btn-outline-danger delete-comment-btn ms-2"
+                            data-comment-id="{{ comment.id }}" title="Видалити">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
             {% endif %}
 
             {% if is_teacher %}
             <hr>
             <div class="mt-4">
-                <h5 class="mb-3">Коментар для учня</h5>
-                <div class="mb-3">
-                    <textarea class="form-control" id="comment-text" rows="3"
-                        placeholder="Введіть коментар...">{{ submission.comment }}</textarea>
-                </div>
-                <button class="btn btn-primary" id="save-comment-btn">Зберегти коментар</button>
-                <small class="text-success d-none" id="comment-msg">Збережено!</small>
+                <h5 class="mb-3">Додати коментар</h5>
+                <form id="comment-form" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="comment">
+                    <div class="mb-3">
+                        <textarea class="form-control" id="comment-input" name="comment" rows="3"
+                            placeholder="Напишіть коментар..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Додати коментар</button>
+                    <small class="text-success d-none" id="comment-msg">Коментар додано!</small>
+                </form>
             </div>
             {% endif %}
         </div>
@@ -110,30 +130,70 @@
 {% if is_teacher %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const saveBtn = document.getElementById('save-comment-btn');
-        const commentText = document.getElementById('comment-text');
+        const commentForm = document.getElementById('comment-form');
         const msg = document.getElementById('comment-msg');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-        saveBtn.addEventListener('click', function () {
-            const comment = commentText.value;
+        // Add comment
+        if (commentForm) {
+            commentForm.addEventListener('submit', function (e) {
+                e.preventDefault();
 
-            fetch(`/teacher/comment/{{ submission.id }}/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: `comment=${encodeURIComponent(comment)}`
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        msg.classList.remove('d-none');
-                        setTimeout(() => msg.classList.add('d-none'), 2000);
-                        location.reload();
+                const textarea = this.querySelector('textarea');
+                const comment = textarea.value.trim();
+
+                if (!comment) return;
+
+                const formData = new FormData(this);
+
+                fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            textarea.value = '';  // Clear the textarea
+                            msg.classList.remove('d-none');
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1000);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            });
+        }
+
+        // Delete comment
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.delete-comment-btn')) {
+                const btn = e.target.closest('.delete-comment-btn');
+                const commentId = btn.dataset.commentId;
+
+                if (!confirm('Видалити цей коментар?')) return;
+
+                fetch(`/teacher/comment/delete/${commentId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
                     }
                 })
-                .catch(error => console.error('Error:', error));
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            location.reload();
+                        } else {
+                            alert(data.message || 'Помилка видалення');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Помилка з\'єднання');
+                    });
+            }
         });
     });
 </script>

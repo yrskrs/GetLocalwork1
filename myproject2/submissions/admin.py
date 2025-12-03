@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ClassGroup, Submission
+from .models import ClassGroup, Submission, Comment, ActivityLog
 
 @admin.register(ClassGroup)
 class ClassGroupAdmin(admin.ModelAdmin):
@@ -8,7 +8,7 @@ class ClassGroupAdmin(admin.ModelAdmin):
 
 @admin.register(Submission)
 class SubmissionAdmin(admin.ModelAdmin):
-    list_display = ['last_name', 'first_name', 'class_group', 'submitted_at', 'file_type_display', 'grade', 'has_comment', 'teacher_name']
+    list_display = ['last_name', 'first_name', 'class_group', 'submitted_at', 'file_type_display', 'grade', 'comments_count', 'teacher_name']
     list_filter = ['class_group', 'submitted_at', 'grade', 'teacher']
     search_fields = ['last_name', 'first_name']
     readonly_fields = ['submitted_at']
@@ -22,14 +22,13 @@ class SubmissionAdmin(admin.ModelAdmin):
             'fields': ('file', 'link', 'submitted_at')
         }),
         ('Оцінювання', {
-            'fields': ('grade', 'comment', 'teacher')
+            'fields': ('grade', 'teacher')
         }),
     )
     
-    def has_comment(self, obj):
-        return bool(obj.comment)
-    has_comment.boolean = True
-    has_comment.short_description = 'Коментар'
+    def comments_count(self, obj):
+        return obj.comments.count()
+    comments_count.short_description = 'Коментарів'
     
     def teacher_name(self, obj):
         if obj.teacher:
@@ -48,3 +47,21 @@ class SubmissionAdmin(admin.ModelAdmin):
             return "Посилання"
         return "-"
     file_type_display.short_description = 'Тип файлу'
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ['submission', 'author', 'text_preview', 'created_at']
+    list_filter = ['created_at', 'author']
+    search_fields = ['text', 'submission__last_name', 'submission__first_name']
+    readonly_fields = ['created_at']
+    
+    def text_preview(self, obj):
+        return obj.text[:50] + '...' if len(obj.text) > 50 else obj.text
+    text_preview.short_description = 'Текст'
+
+@admin.register(ActivityLog)
+class ActivityLogAdmin(admin.ModelAdmin):
+    list_display = ['timestamp', 'actor', 'action_type', 'description', 'submission']
+    list_filter = ['action_type', 'timestamp']
+    search_fields = ['description', 'actor__username']
+    readonly_fields = ['timestamp']
