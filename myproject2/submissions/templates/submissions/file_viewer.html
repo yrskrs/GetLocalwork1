@@ -40,9 +40,15 @@
                                     class="bi bi-chevron-right"></i></button>
                             {% endif %}
 
+                            {% if submission.link %}
+                            <a href="{{ submission.link }}" target="_blank" class="btn btn-primary btn-sm ms-2">
+                                <i class="bi bi-box-arrow-up-right"></i> Перейти
+                            </a>
+                            {% elif submission.file %}
                             <a href="{{ submission.file.url }}" download class="btn btn-primary btn-sm ms-2">
                                 <i class="bi bi-download"></i> Завантажити
                             </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -145,6 +151,50 @@
                         </div>
                     </div>
 
+                    {% elif file_type == 'pdf' %}
+                    <!-- PDF Preview -->
+                    <div class="pdf-preview-container bg-dark" style="height: 80vh;">
+                        <object data="{{ submission.file.url }}" type="application/pdf" width="100%" height="100%">
+                            <div class="text-center text-white pt-5">
+                                <p>Ваш браузер не підтримує вбудований перегляд PDF.</p>
+                                <a href="{{ submission.file.url }}" class="btn btn-primary">Завантажити PDF</a>
+                            </div>
+                        </object>
+                    </div>
+
+                    {% elif file_type == 'link' %}
+                    <!-- Link Preview -->
+                    <div class="link-preview-container bg-light h-100 d-flex flex-column">
+                        <div class="p-2 bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <a href="{{ submission.link }}" target="_blank" class="text-truncate me-3">
+                                <i class="bi bi-link-45deg me-1"></i>{{ submission.link }}
+                            </a>
+                            <a href="{{ submission.link }}" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Відкрити
+                            </a>
+                        </div>
+                        <div class="flex-grow-1 bg-white position-relative">
+                            <iframe src="{{ submission.link }}" width="100%" height="100%"
+                                style="border: none; min-height: 80vh;">
+                                <div class="text-center p-5">
+                                    <p>Ваш браузер не підтримує попередній перегляд цього сайту.</p>
+                                    <a href="{{ submission.link }}" target="_blank" class="btn btn-primary">Відкрити
+                                        сайт</a>
+                                </div>
+                            </iframe>
+                            <!-- Overlay for sites that block embedding -->
+                            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-light bg-opacity-75"
+                                style="z-index: -1;" id="iframe-fallback">
+                                <div class="text-center">
+                                    <p class="mb-3">Якщо сайт не відображається, можливо він забороняє вбудовування.</p>
+                                    <a href="{{ submission.link }}" target="_blank" class="btn btn-primary">
+                                        <i class="bi bi-box-arrow-up-right me-2"></i>Відкрити у новій вкладці
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {% elif file_type == 'office' %}
                     <!-- Office Document Placeholder -->
                     <div class="text-center p-5">
@@ -238,7 +288,9 @@
                                     <div class="flex-grow-1">
                                         <small class="text-muted">
                                             📅 {{ comment.created_at|date:"d.m.Y H:i" }} |
-                                            👤 {% if comment.author.first_name %}{{ comment.author.first_name }}
+
+                                            👤 {% if comment.author.first_name %}
+                                            {{ comment.author.first_name }}
                                             {{ comment.author.last_name }}{% else %}{{ comment.author.username }}
                                             {% endif %}
                                         </small>

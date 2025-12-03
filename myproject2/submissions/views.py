@@ -467,16 +467,28 @@ def view_file(request, submission_id):
         prev_submission = None
         next_submission = None
 
-    if not submission.file:
-        return HttpResponse("Файл не знайдено", status=404)
+    if not submission.file and not submission.link:
+        return HttpResponse("Файл або посилання не знайдено", status=404)
+    
+    # If link exists but no file, create a dummy file to prevent errors
+    if submission.link and not submission.file:
+        from django.core.files.base import ContentFile
+        file_content = f"[InternetShortcut]\nURL={submission.link}"
+        submission.file.save(f"link_{submission.id}.url", ContentFile(file_content))
+        submission.save()
     
     # Determine file type and content
-    file_ext = submission.get_file_extension().lower()
     file_type = 'unknown'
     content = None
     html_content = None
     archive_content = None
     error_message = None
+    file_ext = ''
+
+    if submission.file:
+        file_ext = submission.get_file_extension().lower()
+    elif submission.link:
+        file_type = 'link'
 
     # List of archive extensions
     archive_files = ['.zip', '.rar', '.7z', '.tar', '.gz']
@@ -487,60 +499,61 @@ def view_file(request, submission_id):
     # List of image extensions
     image_files = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
 
-    if file_ext in ['.py', '.js', '.html', '.css', '.txt', '.md', '.json']:
-        file_type = 'code'
-        try:
-            with open(submission.file.path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except Exception as e:
-            content = f"Помилка при читанні файлу: {str(e)}"
+    if submission.file:
+        if file_ext in ['.py', '.js', '.html', '.css', '.txt', '.md', '.json', '.url']:
+            file_type = 'code'
+            try:
+                with open(submission.file.path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except Exception as e:
+                content = f"Помилка при читанні файлу: {str(e)}"
+                
+        elif file_ext in office_preview:
+            file_type = 'office_preview'
+            from .utils import (
+                convert_docx_to_html, 
+                convert_xlsx_to_html, 
+                convert_pptx_to_html,
+                convert_odt_to_html,
+                convert_ods_to_html,
+                convert_odp_to_html
+            )
+            try:
+                if file_ext in ['.docx', '.doc']:
+                    html_content, error_message = convert_docx_to_html(submission.file.path)
+                elif file_ext in ['.xlsx', '.xls']:
+                    html_content, error_message = convert_xlsx_to_html(submission.file.path)
+                elif file_ext in ['.pptx', '.ppt']:
+                    html_content, error_message = convert_pptx_to_html(submission.file.path)
+                elif file_ext == '.odt':
+                    html_content, error_message = convert_odt_to_html(submission.file.path)
+                elif file_ext == '.ods':
+                    html_content, error_message = convert_ods_to_html(submission.file.path)
+                elif file_ext == '.odp':
+                    html_content, error_message = convert_odp_to_html(submission.file.path)
+            except Exception as e:
+                error_message = f"Помилка конвертації: {str(e)}"
+
+        elif file_ext in archive_files:
+            file_type = 'archive'
+            from .utils import get_archive_content
+            archive_content, error_message = get_archive_content(submission.file.path, file_ext)
             
-    elif file_ext in office_preview:
-        file_type = 'office_preview'
-        from .utils import (
-            convert_docx_to_html, 
-            convert_xlsx_to_html, 
-            convert_pptx_to_html,
-            convert_odt_to_html,
-            convert_ods_to_html,
-            convert_odp_to_html
-        )
-        try:
-            if file_ext in ['.docx', '.doc']:
-                html_content, error_message = convert_docx_to_html(submission.file.path)
-            elif file_ext in ['.xlsx', '.xls']:
-                html_content, error_message = convert_xlsx_to_html(submission.file.path)
-            elif file_ext in ['.pptx', '.ppt']:
-                html_content, error_message = convert_pptx_to_html(submission.file.path)
-            elif file_ext == '.odt':
-                html_content, error_message = convert_odt_to_html(submission.file.path)
-            elif file_ext == '.ods':
-                html_content, error_message = convert_ods_to_html(submission.file.path)
-            elif file_ext == '.odp':
-                html_content, error_message = convert_odp_to_html(submission.file.path)
-        except Exception as e:
-            error_message = f"Помилка конвертації: {str(e)}"
+        elif file_ext in image_files:
+            file_type = 'image'
+            
+        elif file_ext in ['.pdf']:
+            file_type = 'pdf'
 
-    elif file_ext in archive_files:
-        file_type = 'archive'
-        from .utils import get_archive_content
-        archive_content, error_message = get_archive_content(submission.file.path, file_ext)
-        
-    elif file_ext in image_files:
-        file_type = 'image'
-        
-    elif file_ext in ['.pdf']:
-        return FileResponse(open(submission.file.path, 'rb'), content_type='application/pdf')
-
-    else:
-        file_type = 'office'
+        else:
+            file_type = 'office'
 
     # Get all comments for this submission
     comments = submission.comments.all().select_related('author')
 
     context = {
         'submission': submission,
-        'file_name': os.path.basename(submission.file.name),
+        'file_name': os.path.basename(submission.file.name) if submission.file else '',
         'file_ext': file_ext,
         'file_type': file_type,
         'content': content,

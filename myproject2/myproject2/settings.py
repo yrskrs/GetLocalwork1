@@ -127,3 +127,6 @@ import os
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Allow embedding in iframes (for PDF preview)
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
